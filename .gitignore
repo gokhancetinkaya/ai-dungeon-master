@@ -1,0 +1,11 @@
+# Python
+venv/
+__pycache__/
+
+# Model files (large files excluded from git)
+models/*/base_model/
+models/*/triton_model_repo/
+
+# Presentation files
+presentation/
+

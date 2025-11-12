@@ -1,0 +1,145 @@
+# Combined Triton Server Deployment for Single GPU
+# Serves both text and image models on the same GPU
+# Uses hostPath to mount models directly from host (no copying needed)
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triton-combined
+  namespace: ai-dungeon-master
+  labels:
+    app: triton-combined
+    component: inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triton-combined
+  template:
+    metadata:
+      labels:
+        app: triton-combined
+        component: inference
+    spec:
+      containers:
+      - name: triton-server
+        image: localhost:32000/ai-dungeon-master-triton:latest
+        imagePullPolicy: Always
+        command: ["tritonserver"]
+        args:
+          - "--model-repository=/models"
+          - "--strict-model-config=false"
+          - "--log-verbose=1"
+          - "--model-control-mode=poll"  # Poll for models, load them when available
+          - "--repository-poll-secs=10"  # Check for new models every 10 seconds
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8001
+          name: grpc
+        - containerPort: 8002
+          name: metrics
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "24Gi"
+            cpu: "3"
+          requests:
+            nvidia.com/gpu: 1
+            memory: "20Gi"
+            cpu: "1.5"
+        volumeMounts:
+        - name: text-models
+          mountPath: /models/mistral_dm
+          readOnly: true
+        - name: image-models
+          mountPath: /models/sdxl_pov
+          readOnly: true
+        env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"  # Use GPU 0
+        - name: PYTORCH_CUDA_ALLOC_CONF
+          value: "expandable_segments:True"  # Reduce memory fragmentation for better GPU memory reuse
+        - name: ENABLE_CPU_OFFLOAD
+          value: "true"  # Enable CPU offloading for SDXL (single GPU mode - saves VRAM)
+        startupProbe:  # Wait for Triton to finish loading models
+          httpGet:
+            path: /v2/health/live
+            port: 8000
+          initialDelaySeconds: 300  # Wait 5 minutes before first check
+          periodSeconds: 30
+          failureThreshold: 20  # 300s + (30s * 20) = 900s = 15 minutes max startup time
+        livenessProbe:
+          httpGet:
+            path: /v2/health/live
+            port: 8000
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /v2/health/ready
+            port: 8000
+          periodSeconds: 10
+          failureThreshold: 3
+      volumes:
+              - name: text-models
+                hostPath:
+                  path: ${PROJECT_DIR}/models/text/triton_model_repo/mistral_dm
+                  type: Directory
+              - name: image-models
+                hostPath:
+                  path: ${PROJECT_DIR}/models/image/triton_model_repo/sdxl_pov
+                  type: Directory
+      
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triton-text-service
+  namespace: ai-dungeon-master
+  labels:
+    app: triton-combined
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  - port: 8001
+    targetPort: 8001
+    name: grpc
+  - port: 8002
+    targetPort: 8002
+    name: metrics
+  selector:
+    app: triton-combined
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triton-image-service
+  namespace: ai-dungeon-master
+  labels:
+    app: triton-combined
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  - port: 8001
+    targetPort: 8001
+    name: grpc
+  - port: 8002
+    targetPort: 8002
+    name: metrics
+  selector:
+    app: triton-combined
+
