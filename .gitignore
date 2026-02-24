@@ -9,3 +9,5 @@ models/*/triton_model_repo/
 # Presentation files
 presentation/
 
+# Notes
+notes/

@@ -1,6 +1,6 @@
-# AI Dungeon Master - Multi-Model Orchestration Platform
+# AI Dungeon Master - Multimodal AI Orchestration Platform
 
-A complete demonstration platform for GPU-accelerated, multi-model AI orchestration. Features real-time narrative generation and scene rendering for D&D-style gameplay, deployed on Kubernetes with NVIDIA Triton Inference Server.
+A complete demonstration platform for GPU-accelerated, multimodal AI orchestration. Features real-time narrative generation and scene rendering for D&D-style gameplay, deployed on Kubernetes with NVIDIA Triton Inference Server.
 
 ---
 
@@ -26,7 +26,7 @@ A complete demonstration platform for GPU-accelerated, multi-model AI orchestrat
 This project demonstrates:
 - **Real-time narrative generation** using Mistral-7B-Instruct
 - **Scene image generation** using Stable Diffusion XL
-- **Multi-model coordination** via FastAPI orchestrator
+- **Multimodal coordination** (text + image) via FastAPI orchestrator
 - **GPU-accelerated inference** using NVIDIA Triton Inference Server
 - **Container orchestration** on MicroK8s (Kubernetes)
 
@@ -72,15 +72,15 @@ User sees: Narrative text + Scene image
 └────────────┬─────────────────┬───────────┘
              │  gRPC           │  gRPC
              ▼                 ▼
-    ┌───────────────────────────────────┐
-    │    Inference Server (Triton)      │
-    │  ┌──────────┐    ┌──────────┐     │
-    │  │   Text   │    │  Image   │     │
-    │  │ (Mistral)│    │  (SDXL)  │     │
-    │  └──────────┘    └──────────┘     │
-    └─────────────────┬─────────────────┘
-                      │
-                      ▼
+   ┌────────────────────────────────────┐
+   │    Inference Server (Triton)       │
+   │  ┌──────────────┐    ┌──────────┐  │
+   │  │     Text     │    │  Image   │  │
+   │  │ (Mistral 7B) │    │  (SDXL)  │  │
+   │  └──────────────┘    └──────────┘  │
+   └─────────────────┬──────────────────┘
+                     │
+                     ▼
             ┌──────────────────┐
             │  Kubernetes Pods │
             │    (MicroK8s)    │
